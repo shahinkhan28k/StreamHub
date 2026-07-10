@@ -510,7 +510,6 @@ export default function VideoDetail() {
                       preload="auto"
                       playsInline
                       webkit-playsinline="true"
-                      crossOrigin="anonymous"
                       onTimeUpdate={handleTimeUpdate}
                       onEnded={() => setIsPlaying(false)}
                       onClick={togglePlay}
