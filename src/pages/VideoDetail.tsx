@@ -93,6 +93,26 @@ export default function VideoDetail() {
           console.warn("Could not read remote settings, using local settings defaults");
         }
 
+        const defaultAdConfig = {
+          enabled: true,
+          directLink: 'https://example.com/adsterra-direct',
+          socialBarScript: '',
+          popunderScript: '',
+          timerSeconds: 10,
+          promoTitle1: 'Free Fire Arena',
+          promoDesc1: 'Install & play for 30s to unlock video instantly!',
+          promoLink1: 'https://example.com/free-fire-promo',
+          promoIcon1: 'game',
+          promoTitle2: 'Super VPN Premium',
+          promoDesc2: 'Secure your browsing with zero log VPN. Fast & Free!',
+          promoLink2: 'https://example.com/vpn-promo',
+          promoIcon2: 'download',
+          promoTitle3: 'Join Movie Channel',
+          promoDesc3: 'Subscribe to our Official Telegram for premium collections!',
+          promoLink3: 'https://telegram.org',
+          promoIcon3: 'telegram'
+        };
+
         if (!settings) {
           settings = {
             siteName: 'StreamHub',
@@ -101,26 +121,38 @@ export default function VideoDetail() {
             contactEmail: 'admin@streamhub.io',
             socialLinks: { twitter: '', facebook: '', instagram: '', youtube: '' },
             featureToggles: { lockedVideoScreen: true, darkMode: true },
-            adConfig: {
-              enabled: true,
-              directLink: 'https://example.com/adsterra-direct',
-              socialBarScript: '',
-              popunderScript: '',
-              timerSeconds: 10,
-              promoTitle1: 'Free Fire Arena',
-              promoDesc1: 'Install & play for 30s to unlock video instantly!',
-              promoLink1: 'https://example.com/free-fire-promo',
-              promoIcon1: 'game',
-              promoTitle2: 'Super VPN Premium',
-              promoDesc2: 'Secure your browsing with zero log VPN. Fast & Free!',
-              promoLink2: 'https://example.com/vpn-promo',
-              promoIcon2: 'download',
-              promoTitle3: 'Join Movie Channel',
-              promoDesc3: 'Subscribe to our Official Telegram for premium collections!',
-              promoLink3: 'https://telegram.org',
-              promoIcon3: 'telegram'
-            }
+            adConfig: defaultAdConfig
           };
+        } else {
+          // If adConfig is missing or some fields are empty strings/undefined, merge with defaults
+          if (!settings.adConfig) {
+            settings.adConfig = defaultAdConfig;
+          } else {
+            settings.adConfig = {
+              ...defaultAdConfig,
+              ...settings.adConfig
+            };
+
+            // Ensure empty strings fallback to default content so buttons are never blank
+            if (!settings.adConfig.directLink) {
+              settings.adConfig.directLink = defaultAdConfig.directLink;
+            }
+            if (!settings.adConfig.promoTitle1) {
+              settings.adConfig.promoTitle1 = defaultAdConfig.promoTitle1;
+              settings.adConfig.promoDesc1 = defaultAdConfig.promoDesc1;
+              settings.adConfig.promoLink1 = defaultAdConfig.promoLink1;
+            }
+            if (!settings.adConfig.promoTitle2) {
+              settings.adConfig.promoTitle2 = defaultAdConfig.promoTitle2;
+              settings.adConfig.promoDesc2 = defaultAdConfig.promoDesc2;
+              settings.adConfig.promoLink2 = defaultAdConfig.promoLink2;
+            }
+            if (!settings.adConfig.promoTitle3) {
+              settings.adConfig.promoTitle3 = defaultAdConfig.promoTitle3;
+              settings.adConfig.promoDesc3 = defaultAdConfig.promoDesc3;
+              settings.adConfig.promoLink3 = defaultAdConfig.promoLink3;
+            }
+          }
         }
 
         setSiteSettings(settings);

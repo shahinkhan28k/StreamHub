@@ -12,9 +12,49 @@ export default function SiteSettingsPage() {
 
   useEffect(() => {
     const fetchSettings = async () => {
+      const defaultPromoConfig = {
+        directLink: 'https://example.com/adsterra-direct',
+        timerSeconds: 10,
+        promoTitle1: 'Free Fire Arena',
+        promoDesc1: 'Install & play for 30s to unlock video instantly!',
+        promoLink1: 'https://example.com/free-fire-promo',
+        promoIcon1: 'game',
+        promoTitle2: 'Super VPN Premium',
+        promoDesc2: 'Secure your browsing with zero log VPN. Fast & Free!',
+        promoLink2: 'https://example.com/vpn-promo',
+        promoIcon2: 'download',
+        promoTitle3: 'Join Movie Channel',
+        promoDesc3: 'Subscribe to our Official Telegram for premium collections!',
+        promoLink3: 'https://telegram.org',
+        promoIcon3: 'telegram'
+      };
+
       const docSnap = await getDoc(doc(db, 'settings', 'general'));
       if (docSnap.exists()) {
-        reset(docSnap.data() as SiteSettings);
+        const savedData = docSnap.data() as SiteSettings;
+        const adConfigMerged = {
+          enabled: savedData.adConfig?.enabled ?? false,
+          directLink: savedData.adConfig?.directLink || defaultPromoConfig.directLink,
+          socialBarScript: savedData.adConfig?.socialBarScript || '',
+          popunderScript: savedData.adConfig?.popunderScript || '',
+          timerSeconds: savedData.adConfig?.timerSeconds ?? defaultPromoConfig.timerSeconds,
+          promoTitle1: savedData.adConfig?.promoTitle1 || defaultPromoConfig.promoTitle1,
+          promoDesc1: savedData.adConfig?.promoDesc1 || defaultPromoConfig.promoDesc1,
+          promoLink1: savedData.adConfig?.promoLink1 || defaultPromoConfig.promoLink1,
+          promoIcon1: savedData.adConfig?.promoIcon1 || defaultPromoConfig.promoIcon1,
+          promoTitle2: savedData.adConfig?.promoTitle2 || defaultPromoConfig.promoTitle2,
+          promoDesc2: savedData.adConfig?.promoDesc2 || defaultPromoConfig.promoDesc2,
+          promoLink2: savedData.adConfig?.promoLink2 || defaultPromoConfig.promoLink2,
+          promoIcon2: savedData.adConfig?.promoIcon2 || defaultPromoConfig.promoIcon2,
+          promoTitle3: savedData.adConfig?.promoTitle3 || defaultPromoConfig.promoTitle3,
+          promoDesc3: savedData.adConfig?.promoDesc3 || defaultPromoConfig.promoDesc3,
+          promoLink3: savedData.adConfig?.promoLink3 || defaultPromoConfig.promoLink3,
+          promoIcon3: savedData.adConfig?.promoIcon3 || defaultPromoConfig.promoIcon3
+        };
+        reset({
+          ...savedData,
+          adConfig: adConfigMerged
+        });
       } else {
         // Defaults
         reset({
@@ -26,10 +66,7 @@ export default function SiteSettingsPage() {
           featureToggles: { lockedVideoScreen: true, darkMode: true },
           adConfig: {
             enabled: false,
-            directLink: '',
-            socialBarScript: '',
-            popunderScript: '',
-            timerSeconds: 10
+            ...defaultPromoConfig
           }
         });
       }
