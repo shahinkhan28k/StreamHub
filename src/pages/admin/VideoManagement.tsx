@@ -142,13 +142,23 @@ export default function VideoManagement() {
       // Handle Video File Upload
       const videoFile = videoFileRef.current?.files?.[0];
       if (videoFile) {
-        videoUrl = await uploadFile(videoFile, 'videos');
+        try {
+          videoUrl = await uploadFile(videoFile, 'videos');
+        } catch (uploadErr: any) {
+          console.error("Video upload error:", uploadErr);
+          throw new Error(`STORAGE_VIDEO_FAILED: ${uploadErr?.message || 'Access Denied'}`);
+        }
       }
 
       // Handle Thumbnail File Upload
       const thumbFile = thumbFileRef.current?.files?.[0];
       if (thumbFile) {
-        thumbnailUrl = await uploadFile(thumbFile, 'thumbnails');
+        try {
+          thumbnailUrl = await uploadFile(thumbFile, 'thumbnails');
+        } catch (uploadErr: any) {
+          console.error("Thumbnail upload error:", uploadErr);
+          throw new Error(`STORAGE_THUMBNAIL_FAILED: ${uploadErr?.message || 'Access Denied'}`);
+        }
       }
 
       if (!videoUrl || !thumbnailUrl) {
@@ -184,14 +194,25 @@ export default function VideoManagement() {
       setProgress({});
       reset();
       fetchVideos();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving video:", error);
-      alert("Success! Stored securely in database & local engine fallback.");
-      setIsModalOpen(false);
-      setEditingVideo(null);
-      setProgress({});
-      reset();
-      fetchVideos();
+      const errMsg = error?.message || "";
+      
+      if (errMsg.includes("STORAGE_VIDEO_FAILED") || errMsg.includes("STORAGE_THUMBNAIL_FAILED")) {
+        alert(
+          "❌ Firebase Storage Upload Blocked / Failed!\n\n" +
+          "This issue happens because Firebase Storage is not activated in your project, or the security rules block unauthenticated uploads.\n\n" +
+          "HOW TO SOLVE PERMANENTLY:\n" +
+          "1. Go to your Firebase Console (console.firebase.google.com)\n" +
+          "2. Click 'Storage' in the left sidebar under Build.\n" +
+          "3. Click 'Get Started' to enable the storage bucket.\n" +
+          "4. Go to the 'Rules' tab and change 'allow read, write: if false;' to 'allow read, write: if true;' (or customize for authenticated users) so anyone can upload.\n\n" +
+          "💡 INSTANT WORKAROUND (Highly Recommended):\n" +
+          "Instead of uploading files, copy any direct MP4 link (from Google Drive, Dropbox, free CDNs, or YouTube) and paste it into the 'Video URL' input! It will deploy in 0.1 seconds with NO loading/processing time!"
+        );
+      } else {
+        alert("Error saving video: " + errMsg);
+      }
     } finally {
       setUploading(false);
     }
@@ -534,7 +555,14 @@ export default function VideoManagement() {
                         accept="image/*"
                         className="hidden" 
                         onChange={(e) => {
-                          if (e.target.files?.[0]) setValue('thumbnail', e.target.files[0].name);
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const sizeInMB = file.size / (1024 * 1024);
+                            if (sizeInMB > 5) {
+                              alert(`Notice: This image is ${sizeInMB.toFixed(1)}MB. Image uploads should ideally be under 1-2MB for maximum speed. Please compress it or use a web link if possible.`);
+                            }
+                            setValue('thumbnail', file.name);
+                          }
                         }}
                       />
                       <button 
@@ -565,7 +593,19 @@ export default function VideoManagement() {
                         accept="video/*"
                         className="hidden" 
                         onChange={(e) => {
-                          if (e.target.files?.[0]) setValue('videoUrl', e.target.files[0].name);
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const sizeInMB = file.size / (1024 * 1024);
+                            if (sizeInMB > 15) {
+                              alert(
+                                `⚠️ warning: This video file is very large (${sizeInMB.toFixed(1)} MB)!\n\n` +
+                                "Uploading large files directly can take several minutes or fail completely due to network limits or inactive Firebase Storage rules.\n\n" +
+                                "💡 BEST PRACTICE:\n" +
+                                "We highly recommend uploading your video to Google Drive, Dropbox, YouTube, or free video hosting sites, then pasting the direct video URL in the field above! This guarantees 0-second instant processing."
+                              );
+                            }
+                            setValue('videoUrl', file.name);
+                          }
                         }}
                       />
                       <button 

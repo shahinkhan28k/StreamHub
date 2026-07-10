@@ -15,6 +15,39 @@ import { motion, AnimatePresence } from 'motion/react';
 import VideoCard from '../components/VideoCard';
 import { getSingleStoredVideo, getStoredVideos } from '../lib/videoStore';
 
+// Helper to extract iframe / embed URL for standard cloud-hosted platforms
+function getEmbedUrl(url: string) {
+  if (!url) return null;
+  const trimmed = url.trim();
+
+  // YouTube Links
+  const ytMatch = trimmed.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0&modestbranding=1`;
+  }
+  
+  // Google Drive Shared Links
+  if (trimmed.includes('drive.google.com')) {
+    const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
+    if (driveMatch && driveMatch[1]) {
+      return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+    }
+  }
+
+  // Vimeo Links
+  const vimeoMatch = trimmed.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)(?:$|\/|\?)/i);
+  if (vimeoMatch && vimeoMatch[3]) {
+    return `https://player.vimeo.com/video/${vimeoMatch[3]}?autoplay=1`;
+  }
+
+  // Already an embedded URL (like DailyMotion iframe or other custom embed)
+  if (trimmed.includes('/embed/') || trimmed.includes('/preview') || trimmed.includes('player.')) {
+    return trimmed;
+  }
+
+  return null;
+}
+
 export default function VideoDetail() {
   const { id } = useParams<{ id: string }>();
   const { user, profile } = useAuth();
@@ -41,6 +74,7 @@ export default function VideoDetail() {
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const controlsTimeout = useRef<number | null>(null);
+  const [videoError, setVideoError] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -416,99 +450,170 @@ export default function VideoDetail() {
               )}
             </div>
           ) : (
-            <div className="relative w-full h-full group" onMouseMove={() => setShowControls(true)}>
-              {video.videoUrl ? (
-                <video
-                  ref={videoRef}
-                  src={video.videoUrl}
-                  className="w-full h-full"
-                  onTimeUpdate={handleTimeUpdate}
-                  onEnded={() => setIsPlaying(false)}
-                  onClick={togglePlay}
-                />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900 text-neutral-500">
-                  <Play className="w-12 h-12 mb-4 opacity-20" />
-                  <p>Video source not available</p>
+            <div className="relative w-full h-full group bg-black overflow-hidden rounded-2xl" onMouseMove={() => setShowControls(true)}>
+              {getEmbedUrl(video.videoUrl) ? (
+                <div className="w-full h-full relative">
+                  <iframe
+                    src={getEmbedUrl(video.videoUrl)!}
+                    className="w-full h-full border-0 absolute inset-0 z-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    referrerPolicy="no-referrer"
+                  />
+                  {/* Floating Back Button for Iframe Embeds */}
+                  <div className="absolute top-4 left-4 z-10">
+                    <Link to="/" className="p-2 bg-black/60 hover:bg-black/80 backdrop-blur-sm text-white rounded-full transition-colors flex items-center justify-center">
+                      <ChevronLeft className="w-5 h-5" />
+                    </Link>
+                  </div>
                 </div>
-              )}
-              
-              {/* Custom Controls Overlay */}
-              <AnimatePresence>
-                {showControls && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 flex flex-col justify-end p-4 transition-opacity"
-                  >
-                    {/* Top Controls */}
-                    <div className="absolute top-4 left-4 flex items-center gap-2">
-                      <Link to="/" className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
-                        <ChevronLeft className="w-5 h-5" />
-                      </Link>
+              ) : (
+                <div className="w-full h-full relative">
+                  {video.videoUrl ? (
+                    <video
+                      ref={videoRef}
+                      src={video.videoUrl}
+                      poster={video.thumbnail}
+                      className="w-full h-full object-contain"
+                      preload="auto"
+                      playsInline
+                      webkit-playsinline="true"
+                      crossOrigin="anonymous"
+                      onTimeUpdate={handleTimeUpdate}
+                      onEnded={() => setIsPlaying(false)}
+                      onClick={togglePlay}
+                      onLoadedMetadata={() => setVideoError(false)}
+                      onError={(e) => {
+                        console.error("Video element loading error:", e);
+                        setVideoError(true);
+                      }}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900 text-neutral-500">
+                      <Play className="w-12 h-12 mb-4 opacity-20" />
+                      <p>Video source not available</p>
                     </div>
+                  )}
 
-                    {/* Bottom Controls */}
-                    <div className="space-y-4">
-                      {/* Progress Bar */}
-                      <div className="group/progress relative h-1.5 bg-white/20 rounded-full cursor-pointer overflow-hidden">
-                        <div 
-                          className="absolute h-full bg-rose-600 rounded-full transition-all duration-100"
-                          style={{ width: `${progress}%` }}
-                        />
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={progress}
-                          onChange={handleSeek}
-                          className="absolute inset-0 w-full opacity-0 cursor-pointer"
-                        />
+                  {/* Diagnostic / Fail-safe Fallback Overlay for direct files */}
+                  {videoError && video.videoUrl && (
+                    <div className="absolute inset-0 bg-neutral-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
+                      <div className="w-14 h-14 bg-rose-500/10 rounded-full flex items-center justify-center text-rose-500 mb-4 animate-bounce">
+                        <ShieldAlert className="w-7 h-7" />
                       </div>
+                      <h4 className="text-sm font-black text-white uppercase tracking-wider">Direct Stream Error</h4>
+                      <p className="text-[11px] text-neutral-400 mt-2 max-w-md leading-relaxed">
+                        Your browser blocked direct streaming of this file due to missing storage CORS headers, a slow network, or unsupported video codecs.
+                      </p>
+                      
+                      <div className="flex flex-col sm:flex-row items-center gap-3 mt-6 w-full max-w-xs">
+                        <a 
+                          href={video.videoUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> Open Direct Link
+                        </a>
+                        <button 
+                          onClick={() => {
+                            if (videoRef.current) {
+                              // Bypass custom engine and use native HTML5 players
+                              videoRef.current.controls = true;
+                              videoRef.current.load();
+                              videoRef.current.play().catch(() => {});
+                            }
+                            setVideoError(false);
+                          }}
+                          className="w-full py-2.5 px-4 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-xl text-xs font-bold transition-all"
+                        >
+                          Show Standard Player
+                        </button>
+                      </div>
+                      <p className="text-[9px] text-neutral-500 mt-4">
+                        💡 Admin Tip: Upload video to YouTube or Google Drive & paste the link for 100% playability!
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Custom Controls Overlay (Only for non-embed files) */}
+                  <AnimatePresence>
+                    {showControls && !videoError && (
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 flex flex-col justify-end p-4 transition-opacity"
+                      >
+                        {/* Top Controls */}
+                        <div className="absolute top-4 left-4 flex items-center gap-2">
+                          <Link to="/" className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
+                            <ChevronLeft className="w-5 h-5" />
+                          </Link>
+                        </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <button onClick={togglePlay} className="p-2 hover:bg-white/20 rounded-full transition-colors">
-                            {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current translate-x-0.5" />}
-                          </button>
-                          
-                          <div className="flex items-center gap-2 group/volume">
-                            <button onClick={toggleMute} className="p-2 hover:bg-white/20 rounded-full transition-colors">
-                              {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                            </button>
+                        {/* Bottom Controls */}
+                        <div className="space-y-4">
+                          {/* Progress Bar */}
+                          <div className="group/progress relative h-1.5 bg-white/20 rounded-full cursor-pointer overflow-hidden">
+                            <div 
+                              className="absolute h-full bg-rose-600 rounded-full transition-all duration-100"
+                              style={{ width: `${progress}%` }}
+                            />
                             <input
                               type="range"
                               min="0"
-                              max="1"
-                              step="0.1"
-                              value={volume}
-                              onChange={handleVolumeChange}
-                              className="w-0 group-hover/volume:w-24 transition-all opacity-0 group-hover/volume:opacity-100 cursor-pointer accent-white"
+                              max="100"
+                              value={progress}
+                              onChange={handleSeek}
+                              className="absolute inset-0 w-full opacity-0 cursor-pointer"
                             />
                           </div>
 
-                          <span className="text-xs font-mono text-neutral-300">
-                            {videoRef.current ? Math.floor(videoRef.current.currentTime / 60) : '0'}:
-                            {videoRef.current ? String(Math.floor(videoRef.current.currentTime % 60)).padStart(2, '0') : '00'} 
-                            {' / '} 
-                            {video.duration}
-                          </span>
-                        </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <button onClick={togglePlay} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                                {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current translate-x-0.5" />}
+                              </button>
+                              
+                              <div className="flex items-center gap-2 group/volume">
+                                <button onClick={toggleMute} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                                  {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                                </button>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="1"
+                                  step="0.1"
+                                  value={volume}
+                                  onChange={handleVolumeChange}
+                                  className="w-0 group-hover/volume:w-24 transition-all opacity-0 group-hover/volume:opacity-100 cursor-pointer accent-white"
+                                />
+                              </div>
 
-                        <div className="flex items-center gap-2">
-                          <button className="p-2 hover:bg-white/20 rounded-full transition-colors">
-                            <Settings className="w-5 h-5" />
-                          </button>
-                          <button onClick={toggleFullscreen} className="p-2 hover:bg-white/20 rounded-full transition-colors">
-                            <Maximize className="w-5 h-5" />
-                          </button>
+                              <span className="text-xs font-mono text-neutral-300">
+                                {videoRef.current ? Math.floor(videoRef.current.currentTime / 60) : '0'}:
+                                {videoRef.current ? String(Math.floor(videoRef.current.currentTime % 60)).padStart(2, '0') : '00'} 
+                                {' / '} 
+                                {video.duration}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <button className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                                <Settings className="w-5 h-5" />
+                              </button>
+                              <button onClick={toggleFullscreen} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                                <Maximize className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
             </div>
           )}
         </div>
