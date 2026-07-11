@@ -1,5 +1,17 @@
 export type UserRole = 'user' | 'moderator' | 'admin';
 
+export interface SubMenuItem {
+  label: string;
+  link: string;
+}
+
+export interface MenuItem {
+  id: string;
+  label: string;
+  link: string;
+  subMenus?: SubMenuItem[];
+}
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -69,6 +81,7 @@ export interface SiteSettings {
     instagram?: string;
     youtube?: string;
   };
+  navigationMenu?: MenuItem[];
   featureToggles: {
     lockedVideoScreen: boolean;
     darkMode: boolean;
@@ -79,6 +92,10 @@ export interface SiteSettings {
     socialBarScript: string;
     popunderScript: string;
     timerSeconds: number;
+    showDirectLink?: boolean;
+    showPromo1?: boolean;
+    showPromo2?: boolean;
+    showPromo3?: boolean;
     promoTitle1?: string;
     promoDesc1?: string;
     promoLink1?: string;

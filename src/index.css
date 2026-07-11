@@ -5,6 +5,15 @@
 }
 
 @layer base {
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+  }
+
   body {
     @apply antialiased text-neutral-200 bg-neutral-950;
   }

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Video } from '../types';
 import VideoCard from '../components/VideoCard';
-import { Search as SearchIcon, Filter, SlidersHorizontal } from 'lucide-react';
+import { Search as SearchIcon, Filter, SlidersHorizontal, ChevronLeft } from 'lucide-react';
 
 export default function Search() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryParam = searchParams.get('q') || '';
   const [videos, setVideos] = useState<Video[]>([]);
@@ -49,6 +50,17 @@ export default function Search() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      {/* Modern Back Button */}
+      <div className="flex items-center">
+        <button 
+          onClick={() => navigate(-1)} 
+          className="flex items-center gap-2 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 border border-white/5 hover:border-white/10 rounded-full text-xs font-bold text-neutral-300 hover:text-white transition-all shadow-xl"
+        >
+          <ChevronLeft className="w-4 h-4 text-rose-500" />
+          <span>ফিরে যান (Go Back)</span>
+        </button>
+      </div>
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">

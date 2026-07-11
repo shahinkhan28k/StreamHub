@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, setDoc, deleteDoc, query, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, query, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
 import { Video } from '../types';
 
@@ -174,5 +174,40 @@ export async function deleteStoredVideo(video: Video): Promise<void> {
     console.log("Deleted from Firestore.");
   } catch (error) {
     console.warn("Firestore delete skipped, removed from local storage:", error);
+  }
+}
+
+// Real-time synchronization for videos
+export function subscribeStoredVideos(
+  onUpdate: (videos: Video[]) => void,
+  onError?: (err: any) => void
+): () => void {
+  try {
+    const videosRef = collection(db, 'videos');
+    const unsubscribe = onSnapshot(
+      query(videosRef),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const firebaseVideos = snapshot.docs.map(
+            (doc) => ({ id: doc.id, ...doc.data() } as Video)
+          );
+          // Update local cache
+          localStorage.setItem(LOCAL_VIDEOS_KEY, JSON.stringify(firebaseVideos));
+          onUpdate(firebaseVideos);
+        } else {
+          onUpdate(getLocalOnlyVideos());
+        }
+      },
+      (error) => {
+        console.warn("Firestore subscription error, falling back to local database:", error);
+        onUpdate(getLocalOnlyVideos());
+        if (onError) onError(error);
+      }
+    );
+    return unsubscribe;
+  } catch (error) {
+    console.warn("Firestore subscription failed to initialize, using local database:", error);
+    onUpdate(getLocalOnlyVideos());
+    return () => {};
   }
 }

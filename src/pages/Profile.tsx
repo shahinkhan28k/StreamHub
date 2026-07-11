@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, Shield, Clock, Heart, History, LogOut } from 'lucide-react';
+import { User, Mail, Shield, Clock, Heart, History, LogOut, ChevronLeft } from 'lucide-react';
 import { auth } from '../lib/firebase';
 import { useNavigate, Link } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
@@ -47,7 +47,18 @@ export default function Profile() {
   if (!user || !profile) return null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12 space-y-12">
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      {/* Modern Back Button */}
+      <div className="flex items-center">
+        <button 
+          onClick={() => navigate(-1)} 
+          className="flex items-center gap-2 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 border border-white/5 hover:border-white/10 rounded-full text-xs font-bold text-neutral-300 hover:text-white transition-all shadow-xl"
+        >
+          <ChevronLeft className="w-4 h-4 text-rose-500" />
+          <span>ফিরে যান (Go Back)</span>
+        </button>
+      </div>
+
       {/* Profile Header */}
       <section className="bg-neutral-900 border border-white/5 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-rose-600/5 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2" />

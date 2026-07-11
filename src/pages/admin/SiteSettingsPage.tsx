@@ -1,14 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { SiteSettings } from '../../types';
-import { Settings as SettingsIcon, Globe, Palette, Shield, Share2, Save, Sparkles, Layout, Check, Megaphone, ExternalLink, Code, Clock } from 'lucide-react';
+import { SiteSettings, MenuItem, SubMenuItem } from '../../types';
+import { 
+  Settings as SettingsIcon, Globe, Palette, Shield, Share2, Save, 
+  Sparkles, Layout, Check, Megaphone, ExternalLink, Code, Clock,
+  Plus, Trash2, ArrowLeft, Menu, ChevronRight
+} from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import AdminSidebar from '../../components/AdminSidebar';
 
 export default function SiteSettingsPage() {
   const [loading, setLoading] = useState(true);
   const { register, handleSubmit, reset } = useForm<SiteSettings>();
   const [success, setSuccess] = useState(false);
+
+  // Navigation Menu Management State
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [newMenuLabel, setNewMenuLabel] = useState('');
+  const [newMenuLink, setNewMenuLink] = useState('');
+  const [newSubMenuLabel, setNewSubMenuLabel] = useState<{[key: string]: string}>({});
+  const [newSubMenuLink, setNewSubMenuLink] = useState<{[key: string]: string}>({});
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -32,12 +44,23 @@ export default function SiteSettingsPage() {
       const docSnap = await getDoc(doc(db, 'settings', 'general'));
       if (docSnap.exists()) {
         const savedData = docSnap.data() as SiteSettings;
+        setMenuItems(savedData.navigationMenu || [
+          { id: '1', label: 'Home', link: '/' },
+          { id: '2', label: 'Movies', link: '/category/movies' },
+          { id: '3', label: 'Sports', link: '/category/sports' },
+          { id: '4', label: 'Gaming', link: '/category/gaming' }
+        ]);
+
         const adConfigMerged = {
           enabled: savedData.adConfig?.enabled ?? false,
           directLink: savedData.adConfig?.directLink || defaultPromoConfig.directLink,
           socialBarScript: savedData.adConfig?.socialBarScript || '',
           popunderScript: savedData.adConfig?.popunderScript || '',
           timerSeconds: savedData.adConfig?.timerSeconds ?? defaultPromoConfig.timerSeconds,
+          showDirectLink: savedData.adConfig?.showDirectLink !== false,
+          showPromo1: savedData.adConfig?.showPromo1 !== false,
+          showPromo2: savedData.adConfig?.showPromo2 !== false,
+          showPromo3: savedData.adConfig?.showPromo3 !== false,
           promoTitle1: savedData.adConfig?.promoTitle1 || defaultPromoConfig.promoTitle1,
           promoDesc1: savedData.adConfig?.promoDesc1 || defaultPromoConfig.promoDesc1,
           promoLink1: savedData.adConfig?.promoLink1 || defaultPromoConfig.promoLink1,
@@ -57,6 +80,13 @@ export default function SiteSettingsPage() {
         });
       } else {
         // Defaults
+        const defaultMenu = [
+          { id: '1', label: 'Home', link: '/' },
+          { id: '2', label: 'Movies', link: '/category/movies' },
+          { id: '3', label: 'Sports', link: '/category/sports' },
+          { id: '4', label: 'Gaming', link: '/category/gaming' }
+        ];
+        setMenuItems(defaultMenu);
         reset({
           siteName: 'StreamHub',
           primaryColor: '#e11d48',
@@ -66,6 +96,10 @@ export default function SiteSettingsPage() {
           featureToggles: { lockedVideoScreen: true, darkMode: true },
           adConfig: {
             enabled: false,
+            showDirectLink: true,
+            showPromo1: true,
+            showPromo2: true,
+            showPromo3: true,
             ...defaultPromoConfig
           }
         });
@@ -77,22 +111,82 @@ export default function SiteSettingsPage() {
 
   const onSubmit = async (data: SiteSettings) => {
     setLoading(true);
-    await setDoc(doc(db, 'settings', 'general'), data);
+    const updatedData = {
+      ...data,
+      navigationMenu: menuItems
+    };
+    await setDoc(doc(db, 'settings', 'general'), updatedData);
     setLoading(false);
     setSuccess(true);
     setTimeout(() => setSuccess(false), 3000);
   };
 
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-10">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-          <SettingsIcon className="w-8 h-8 text-neutral-400" /> Site Settings
-        </h1>
-        <p className="text-neutral-400 text-sm">Configure your platform appearance and core features</p>
-      </div>
+  const addMenuItem = () => {
+    if (!newMenuLabel.trim()) return;
+    const newItem: MenuItem = {
+      id: Date.now().toString(),
+      label: newMenuLabel.trim(),
+      link: newMenuLink.trim() || '#',
+      subMenus: []
+    };
+    setMenuItems([...menuItems, newItem]);
+    setNewMenuLabel('');
+    setNewMenuLink('');
+  };
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+  const removeMenuItem = (id: string) => {
+    setMenuItems(menuItems.filter(item => item.id !== id));
+  };
+
+  const addSubMenuItem = (menuId: string) => {
+    const label = newSubMenuLabel[menuId]?.trim();
+    const link = newSubMenuLink[menuId]?.trim();
+    if (!label) return;
+
+    setMenuItems(menuItems.map(item => {
+      if (item.id === menuId) {
+        return {
+          ...item,
+          subMenus: [...(item.subMenus || []), { label, link: link || '#' }]
+        };
+      }
+      return item;
+    }));
+
+    setNewSubMenuLabel({ ...newSubMenuLabel, [menuId]: '' });
+    setNewSubMenuLink({ ...newSubMenuLink, [menuId]: '' });
+  };
+
+  const removeSubMenuItem = (menuId: string, index: number) => {
+    setMenuItems(menuItems.map(item => {
+      if (item.id === menuId) {
+        const updated = [...(item.subMenus || [])];
+        updated.splice(index, 1);
+        return {
+          ...item,
+          subMenus: updated
+        };
+      }
+      return item;
+    }));
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
+        {/* Elegant Sidebar */}
+        <AdminSidebar />
+
+        {/* Settings Content Area */}
+        <div className="flex-1 w-full space-y-10">
+          <div className="bg-neutral-900/40 p-6 rounded-3xl border border-white/5">
+            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+              <SettingsIcon className="w-8 h-8 text-rose-600 animate-pulse" /> Site Settings
+            </h1>
+            <p className="text-neutral-400 text-sm mt-1">Configure your platform appearance, monetization triggers, and header categories</p>
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         {/* General Info */}
         <section className="bg-neutral-900 border border-white/5 rounded-3xl p-8 shadow-2xl space-y-6">
           <div className="flex items-center gap-3 mb-2">
@@ -151,6 +245,133 @@ export default function SiteSettingsPage() {
           </div>
         </section>
 
+        {/* Dynamic Navigation Menu Settings */}
+        <section className="bg-neutral-900 border border-white/5 rounded-3xl p-8 shadow-2xl space-y-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-rose-500/10 rounded-lg">
+              <Menu className="w-5 h-5 text-rose-500" />
+            </div>
+            <div className="flex flex-col">
+              <h2 className="text-xl font-bold">Dynamic Navigation Menus</h2>
+              <p className="text-xs text-neutral-500">Edit website categories, create nested submenus, and configure links dynamically</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {/* List of current top-level navigation items */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {menuItems.map((item) => (
+                <div key={item.id} className="bg-neutral-950/60 p-5 rounded-2xl border border-white/5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span className="text-xs font-black text-rose-500 uppercase tracking-widest flex items-center gap-1.5">
+                      <ChevronRight className="w-3.5 h-3.5" /> {item.label}
+                    </span>
+                    <button 
+                      type="button" 
+                      onClick={() => removeMenuItem(item.id)} 
+                      className="p-1 hover:bg-rose-500/10 text-neutral-500 hover:text-rose-500 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-xs text-neutral-400">
+                    <div>
+                      <span className="text-[10px] font-bold text-neutral-500 uppercase">Label</span>
+                      <p className="font-semibold text-white mt-0.5">{item.label}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-neutral-500 uppercase">Path / URL</span>
+                      <p className="font-mono mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-rose-400">{item.link}</p>
+                    </div>
+                  </div>
+
+                  {/* Submenus inside this item */}
+                  <div className="space-y-2 border-t border-white/5 pt-3">
+                    <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block">Submenus ({item.subMenus?.length || 0})</span>
+                    <div className="space-y-1.5">
+                      {item.subMenus?.map((sub, sIdx) => (
+                        <div key={sIdx} className="flex items-center justify-between bg-neutral-900/50 py-1.5 px-3 rounded-lg border border-white/5">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-white">{sub.label}</span>
+                            <span className="text-[10px] text-neutral-500 font-mono">{sub.link}</span>
+                          </div>
+                          <button 
+                            type="button" 
+                            onClick={() => removeSubMenuItem(item.id, sIdx)}
+                            className="p-1 hover:bg-rose-500/10 text-neutral-500 hover:text-rose-500 rounded-lg"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Form to add sub-menu item */}
+                    <div className="flex gap-2 items-center bg-neutral-900 p-2 rounded-xl border border-white/5 mt-3">
+                      <input 
+                        type="text" 
+                        placeholder="Sub Label" 
+                        value={newSubMenuLabel[item.id] || ''}
+                        onChange={(e) => setNewSubMenuLabel({ ...newSubMenuLabel, [item.id]: e.target.value })}
+                        className="bg-neutral-950 border border-white/5 rounded-lg py-1 px-2 text-xs w-full focus:outline-none focus:border-rose-500 text-white"
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Sub Link" 
+                        value={newSubMenuLink[item.id] || ''}
+                        onChange={(e) => setNewSubMenuLink({ ...newSubMenuLink, [item.id]: e.target.value })}
+                        className="bg-neutral-950 border border-white/5 rounded-lg py-1 px-2 text-xs w-full focus:outline-none focus:border-rose-500 text-white font-mono"
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => addSubMenuItem(item.id)}
+                        className="p-1 bg-rose-600 hover:bg-rose-700 rounded-lg text-white font-bold transition-all"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Form to add top-level navigation item */}
+            <div className="bg-neutral-950/40 p-5 rounded-2xl border border-white/5 space-y-4">
+              <span className="text-xs font-black text-neutral-300 uppercase tracking-widest block">Create New Main Category Tab</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Tab Label</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g., Premium Sports" 
+                    value={newMenuLabel}
+                    onChange={(e) => setNewMenuLabel(e.target.value)}
+                    className="w-full bg-neutral-800 border border-white/5 rounded-xl py-2.5 px-3 text-xs focus:outline-none focus:border-rose-500 text-white" 
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Tab Link (e.g., /category/sports or external URL)</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g., /category/sports" 
+                    value={newMenuLink}
+                    onChange={(e) => setNewMenuLink(e.target.value)}
+                    className="w-full bg-neutral-800 border border-white/5 rounded-xl py-2.5 px-3 text-xs focus:outline-none focus:border-rose-500 text-white font-mono" 
+                  />
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={addMenuItem}
+                className="flex items-center gap-1.5 px-5 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl text-xs font-bold transition-colors"
+              >
+                <Plus className="w-4 h-4 text-rose-500" /> Confirm & Append Category
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* Features */}
         <section className="bg-neutral-900 border border-white/5 rounded-3xl p-8 shadow-2xl space-y-6">
           <div className="flex items-center gap-3 mb-2">
@@ -202,9 +423,19 @@ export default function SiteSettingsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-                  <ExternalLink className="w-3 h-3" /> Adsterra Direct Link
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
+                    <ExternalLink className="w-3 h-3" /> Adsterra Direct Link
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <div className="relative">
+                      <input type="checkbox" {...register('adConfig.showDirectLink')} className="peer sr-only" />
+                      <div className="w-8 h-5 bg-neutral-800 rounded-full transition-colors peer-checked:bg-emerald-500" />
+                      <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-3" />
+                    </div>
+                    <span className="text-[11px] text-neutral-400 font-semibold">সক্রিয় (Active)</span>
+                  </label>
+                </div>
                 <input 
                   {...register('adConfig.directLink')} 
                   placeholder="https://example.com/direct-link"
@@ -257,7 +488,17 @@ export default function SiteSettingsPage() {
               <div className="grid grid-cols-1 gap-6 bg-neutral-950/40 p-6 rounded-2xl border border-white/5">
                 {/* Campaign 1 */}
                 <div className="space-y-4">
-                  <span className="text-xs font-black text-rose-500 uppercase tracking-widest">Sponsor Campaign #1 (e.g., Gaming/CPI App)</span>
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span className="text-xs font-black text-rose-500 uppercase tracking-widest">Sponsor Campaign #1 (e.g., Gaming/CPI App)</span>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <div className="relative">
+                        <input type="checkbox" {...register('adConfig.showPromo1')} className="peer sr-only" />
+                        <div className="w-8 h-5 bg-neutral-800 rounded-full transition-colors peer-checked:bg-emerald-500" />
+                        <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-3" />
+                      </div>
+                      <span className="text-[11px] text-neutral-400 font-semibold">সক্রিয় (Active)</span>
+                    </label>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-neutral-500 uppercase">Title</label>
@@ -276,7 +517,17 @@ export default function SiteSettingsPage() {
 
                 {/* Campaign 2 */}
                 <div className="space-y-4 border-t border-white/5 pt-4">
-                  <span className="text-xs font-black text-blue-500 uppercase tracking-widest">Sponsor Campaign #2 (e.g., VPN/Utility Offer)</span>
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span className="text-xs font-black text-blue-500 uppercase tracking-widest">Sponsor Campaign #2 (e.g., VPN/Utility Offer)</span>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <div className="relative">
+                        <input type="checkbox" {...register('adConfig.showPromo2')} className="peer sr-only" />
+                        <div className="w-8 h-5 bg-neutral-800 rounded-full transition-colors peer-checked:bg-emerald-500" />
+                        <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-3" />
+                      </div>
+                      <span className="text-[11px] text-neutral-400 font-semibold">সক্রিয় (Active)</span>
+                    </label>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-neutral-500 uppercase">Title</label>
@@ -295,7 +546,17 @@ export default function SiteSettingsPage() {
 
                 {/* Campaign 3 */}
                 <div className="space-y-4 border-t border-white/5 pt-4">
-                  <span className="text-xs font-black text-emerald-500 uppercase tracking-widest">Sponsor Campaign #3 (e.g., Telegram/Social Community)</span>
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span className="text-xs font-black text-emerald-500 uppercase tracking-widest">Sponsor Campaign #3 (e.g., Telegram/Social Community)</span>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <div className="relative">
+                        <input type="checkbox" {...register('adConfig.showPromo3')} className="peer sr-only" />
+                        <div className="w-8 h-5 bg-neutral-800 rounded-full transition-colors peer-checked:bg-emerald-500" />
+                        <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-3" />
+                      </div>
+                      <span className="text-[11px] text-neutral-400 font-semibold">সক্রিয় (Active)</span>
+                    </label>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-neutral-500 uppercase">Title</label>
@@ -326,6 +587,8 @@ export default function SiteSettingsPage() {
           </button>
         </div>
       </form>
+        </div>
+      </div>
     </div>
   );
 }

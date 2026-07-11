@@ -1,15 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, User, Menu, X, Play, LogOut, LayoutDashboard, Settings } from 'lucide-react';
+import { Search, User, Menu, X, Play, LogOut, LayoutDashboard, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { auth } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
+import { MenuItem } from '../types';
 
 export default function Navbar() {
   const { user, profile, isAdmin } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.navigationMenu && data.navigationMenu.length > 0) {
+          setMenuItems(data.navigationMenu);
+        } else {
+          // Fallback to default menu items
+          setMenuItems([
+            { id: '1', label: 'Home', link: '/' },
+            { id: '2', label: 'Movies', link: '/category/movies' },
+            { id: '3', label: 'Sports', link: '/category/sports' },
+            { id: '4', label: 'Gaming', link: '/category/gaming' }
+          ]);
+        }
+      } else {
+        setMenuItems([
+          { id: '1', label: 'Home', link: '/' },
+          { id: '2', label: 'Movies', link: '/category/movies' },
+          { id: '3', label: 'Sports', link: '/category/sports' },
+          { id: '4', label: 'Gaming', link: '/category/gaming' }
+        ]);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,10 +68,38 @@ export default function Navbar() {
             </Link>
 
             <div className="hidden md:flex items-center gap-6 text-sm font-medium text-neutral-400">
-              <Link to="/" className="hover:text-white transition-colors">Home</Link>
-              <Link to="/category/movies" className="hover:text-white transition-colors">Movies</Link>
-              <Link to="/category/sports" className="hover:text-white transition-colors">Sports</Link>
-              <Link to="/category/gaming" className="hover:text-white transition-colors">Gaming</Link>
+              {menuItems.map((item) => (
+                <div 
+                  key={item.id} 
+                  className="relative group"
+                  onMouseEnter={() => item.subMenus && item.subMenus.length > 0 && setActiveDropdown(item.id)}
+                  onMouseLeave={() => setActiveDropdown(null)}
+                >
+                  <Link 
+                    to={item.link} 
+                    className="hover:text-white transition-colors flex items-center gap-1 py-2"
+                  >
+                    {item.label}
+                    {item.subMenus && item.subMenus.length > 0 && (
+                      <ChevronDown className="w-3.5 h-3.5 opacity-75 group-hover:rotate-180 transition-transform duration-200" />
+                    )}
+                  </Link>
+
+                  {item.subMenus && item.subMenus.length > 0 && activeDropdown === item.id && (
+                    <div className="absolute left-0 mt-0 w-48 rounded-xl bg-neutral-900/95 border border-white/10 p-2 shadow-xl backdrop-blur-md z-50">
+                      {item.subMenus.map((sub, idx) => (
+                        <Link
+                          key={idx}
+                          to={sub.link}
+                          className="block px-3 py-2 text-xs text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                        >
+                          {sub.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -114,10 +173,42 @@ export default function Navbar() {
                 />
               </form>
               <div className="flex flex-col gap-2">
-                <Link to="/" onClick={() => setIsOpen(false)} className="px-4 py-2 hover:bg-white/5 rounded-lg">Home</Link>
-                <Link to="/category/movies" onClick={() => setIsOpen(false)} className="px-4 py-2 hover:bg-white/5 rounded-lg">Movies</Link>
-                <Link to="/category/sports" onClick={() => setIsOpen(false)} className="px-4 py-2 hover:bg-white/5 rounded-lg">Sports</Link>
-                <Link to="/category/gaming" onClick={() => setIsOpen(false)} className="px-4 py-2 hover:bg-white/5 rounded-lg">Gaming</Link>
+                {menuItems.map((item) => (
+                  <div key={item.id} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Link 
+                        to={item.link} 
+                        onClick={() => setIsOpen(false)} 
+                        className="px-4 py-2 hover:bg-white/5 rounded-lg flex-1 text-left text-neutral-300 hover:text-white transition-all text-sm font-semibold"
+                      >
+                        {item.label}
+                      </Link>
+                      {item.subMenus && item.subMenus.length > 0 && (
+                        <button 
+                          onClick={() => setActiveDropdown(activeDropdown === item.id ? null : item.id)}
+                          className="p-2 hover:bg-white/5 rounded-lg text-neutral-400"
+                        >
+                          {activeDropdown === item.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
+                      )}
+                    </div>
+
+                    {item.subMenus && item.subMenus.length > 0 && activeDropdown === item.id && (
+                      <div className="pl-6 space-y-1 border-l border-white/5 ml-4">
+                        {item.subMenus.map((sub, idx) => (
+                          <Link
+                            key={idx}
+                            to={sub.link}
+                            onClick={() => setIsOpen(false)}
+                            className="block px-4 py-1.5 text-xs text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                          >
+                            {sub.label}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
               <div className="pt-4 border-t border-white/5">
                 {user ? (

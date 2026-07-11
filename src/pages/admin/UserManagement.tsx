@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { collection, getDocs, doc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { UserProfile } from '../../types';
-import { User, Shield, ShieldAlert, ShieldCheck, Mail, Calendar, Search, MoreVertical, Check, X } from 'lucide-react';
+import { User, Shield, ShieldAlert, ShieldCheck, Mail, Calendar, Search, MoreVertical, Check, X, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import AdminSidebar from '../../components/AdminSidebar';
 
 export default function UserManagement() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,39 +68,56 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-          <p className="text-neutral-400">Manage user permissions and roles</p>
-        </div>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
+        {/* Elegant Sidebar */}
+        <AdminSidebar />
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-            <input
-              type="text"
-              placeholder="Search users..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-neutral-900 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-rose-500 transition-colors w-64"
-            />
+        {/* Content Area */}
+        <div className="flex-1 w-full space-y-6">
+          {/* Back Button */}
+          <div className="flex items-center">
+            <button 
+              onClick={() => navigate(-1)} 
+              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 border border-white/5 hover:border-white/10 rounded-full text-xs font-bold text-neutral-300 hover:text-white transition-all shadow-xl"
+            >
+              <ChevronLeft className="w-4 h-4 text-rose-500" />
+              <span>ফিরে যান (Go Back)</span>
+            </button>
           </div>
-          
-          <select 
-            value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
-            className="bg-neutral-900 border border-white/10 rounded-full py-2 px-4 text-sm focus:outline-none focus:border-rose-500 transition-colors"
-          >
-            <option value="all">All Roles</option>
-            <option value="user">Users</option>
-            <option value="moderator">Moderators</option>
-            <option value="admin">Admins</option>
-          </select>
-        </div>
-      </div>
 
-      <div className="bg-neutral-900 border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-neutral-900/40 p-6 rounded-3xl border border-white/5">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+              <p className="text-neutral-400 mt-1">Manage user permissions and security roles</p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-neutral-900 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-rose-500 transition-colors w-64 text-white"
+                />
+              </div>
+              
+              <select 
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="bg-neutral-900 border border-white/10 rounded-full py-2 px-4 text-sm focus:outline-none focus:border-rose-500 transition-colors text-neutral-300"
+              >
+                <option value="all">All Roles</option>
+                <option value="user">Users</option>
+                <option value="moderator">Moderators</option>
+                <option value="admin">Admins</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="bg-neutral-900 border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -192,5 +212,7 @@ export default function UserManagement() {
         </div>
       </div>
     </div>
+  </div>
+</div>
   );
 }

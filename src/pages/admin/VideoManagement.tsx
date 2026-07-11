@@ -8,9 +8,11 @@ import {
   Image as ImageIcon, RefreshCw, AlertTriangle, CheckCircle, Database
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { getStoredVideos, saveStoredVideo, deleteStoredVideo } from '../../lib/videoStore';
+import { getStoredVideos, saveStoredVideo, deleteStoredVideo, subscribeStoredVideos } from '../../lib/videoStore';
+import AdminSidebar from '../../components/AdminSidebar';
+import { ChevronLeft } from 'lucide-react';
 
 // Preset High-Speed CDN Video Templates
 const CDN_PRESETS = [
@@ -53,6 +55,7 @@ const CDN_PRESETS = [
 ];
 
 export default function VideoManagement() {
+  const navigate = useNavigate();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -64,7 +67,20 @@ export default function VideoManagement() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   
-  const { register, handleSubmit, reset, setValue, watch } = useForm();
+  const { register, handleSubmit, reset, setValue, watch } = useForm<any>({
+    defaultValues: {
+      title: '',
+      description: '',
+      videoUrl: '',
+      thumbnail: '',
+      categoryId: 'movies',
+      duration: '',
+      tags: '',
+      published: true,
+      featured: false,
+      locked: false
+    }
+  });
 
   const videoFileRef = useRef<HTMLInputElement>(null);
   const thumbFileRef = useRef<HTMLInputElement>(null);
@@ -82,7 +98,12 @@ export default function VideoManagement() {
   };
 
   useEffect(() => {
-    fetchVideos();
+    setLoading(true);
+    const unsubscribe = subscribeStoredVideos((data) => {
+      setVideos(data);
+      setLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
   const uploadFile = async (file: File, path: string): Promise<string> => {
@@ -263,7 +284,18 @@ export default function VideoManagement() {
 
   const openAdd = () => {
     setEditingVideo(null);
-    reset();
+    reset({
+      title: '',
+      description: '',
+      videoUrl: '',
+      thumbnail: '',
+      categoryId: 'movies',
+      duration: '',
+      tags: '',
+      featured: false,
+      locked: false,
+      published: true
+    });
     setIsModalOpen(true);
   };
 
@@ -280,9 +312,27 @@ export default function VideoManagement() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-      {/* Top Title & Quick Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
+        {/* Elegant Sidebar */}
+        <AdminSidebar />
+
+        {/* Content Area */}
+        <div className="flex-1 w-full space-y-6">
+          {/* Back Button */}
+          <div className="flex items-center">
+            <button 
+              type="button"
+              onClick={() => navigate(-1)} 
+              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 border border-white/5 hover:border-white/10 rounded-full text-xs font-bold text-neutral-300 hover:text-white transition-all shadow-xl"
+            >
+              <ChevronLeft className="w-4 h-4 text-rose-500" />
+              <span>ফিরে যান (Go Back)</span>
+            </button>
+          </div>
+
+          {/* Top Title & Quick Actions */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-neutral-900/40 p-6 rounded-3xl border border-white/5">
         <div>
           <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
             Video Management Hub
@@ -706,6 +756,8 @@ export default function VideoManagement() {
           </motion.div>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -352,7 +352,19 @@ export default function VideoDetail() {
   if (!video) return null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      {/* Modern Back Button */}
+      <div className="flex items-center">
+        <button 
+          onClick={() => navigate(-1)} 
+          className="flex items-center gap-2 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 border border-white/5 hover:border-white/10 rounded-full text-xs font-bold text-neutral-300 hover:text-white transition-all shadow-xl"
+        >
+          <ChevronLeft className="w-4 h-4 text-rose-500" />
+          <span>ফিরে যান (Go Back)</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       {/* Main Content */}
       <div className="lg:col-span-2 space-y-6">
         {/* Player Container */}
@@ -372,7 +384,7 @@ export default function VideoDetail() {
                   {/* Offers Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                     {/* Adsterra Direct Link */}
-                    {siteSettings?.adConfig?.directLink && (
+                    {siteSettings?.adConfig?.showDirectLink !== false && siteSettings?.adConfig?.directLink && (
                       <button 
                         onClick={() => handlePromoClick(siteSettings?.adConfig?.directLink, 'Sponsor Fast Link')}
                         className="flex items-center gap-3 p-3 bg-neutral-900 hover:bg-neutral-800/80 border border-white/5 hover:border-amber-500/40 rounded-2xl text-left transition-all hover:scale-[1.02] duration-200 group"
@@ -390,7 +402,7 @@ export default function VideoDetail() {
                     )}
 
                     {/* Promo Campaign 1 */}
-                    {siteSettings?.adConfig?.promoTitle1 && (
+                    {siteSettings?.adConfig?.showPromo1 !== false && siteSettings?.adConfig?.promoTitle1 && (
                       <button 
                         onClick={() => handlePromoClick(siteSettings?.adConfig?.promoLink1, siteSettings?.adConfig?.promoTitle1 || 'Offer 1')}
                         className="flex items-center gap-3 p-3 bg-neutral-900 hover:bg-neutral-800/80 border border-white/5 hover:border-rose-500/40 rounded-2xl text-left transition-all hover:scale-[1.02] duration-200 group"
@@ -408,7 +420,7 @@ export default function VideoDetail() {
                     )}
 
                     {/* Promo Campaign 2 */}
-                    {siteSettings?.adConfig?.promoTitle2 && (
+                    {siteSettings?.adConfig?.showPromo2 !== false && siteSettings?.adConfig?.promoTitle2 && (
                       <button 
                         onClick={() => handlePromoClick(siteSettings?.adConfig?.promoLink2, siteSettings?.adConfig?.promoTitle2 || 'Offer 2')}
                         className="flex items-center gap-3 p-3 bg-neutral-900 hover:bg-neutral-800/80 border border-white/5 hover:border-blue-500/40 rounded-2xl text-left transition-all hover:scale-[1.02] duration-200 group"
@@ -426,7 +438,7 @@ export default function VideoDetail() {
                     )}
 
                     {/* Promo Campaign 3 */}
-                    {siteSettings?.adConfig?.promoTitle3 && (
+                    {siteSettings?.adConfig?.showPromo3 !== false && siteSettings?.adConfig?.promoTitle3 && (
                       <button 
                         onClick={() => handlePromoClick(siteSettings?.adConfig?.promoLink3, siteSettings?.adConfig?.promoTitle3 || 'Offer 3')}
                         className="flex items-center gap-3 p-3 bg-neutral-900 hover:bg-neutral-800/80 border border-white/5 hover:border-emerald-500/40 rounded-2xl text-left transition-all hover:scale-[1.02] duration-200 group"
@@ -500,149 +512,37 @@ export default function VideoDetail() {
                   </div>
                 </div>
               ) : (
-                <div className="w-full h-full relative">
+                <div className="w-full h-full relative bg-neutral-950 flex items-center justify-center">
                   {video.videoUrl ? (
-                    <video
-                      ref={videoRef}
-                      src={video.videoUrl}
-                      poster={video.thumbnail}
-                      className="w-full h-full object-contain"
-                      preload="auto"
-                      playsInline
-                      webkit-playsinline="true"
-                      onTimeUpdate={handleTimeUpdate}
-                      onEnded={() => setIsPlaying(false)}
-                      onClick={togglePlay}
-                      onLoadedMetadata={() => setVideoError(false)}
-                      onError={(e) => {
-                        console.error("Video element loading error:", e);
-                        setVideoError(true);
-                      }}
-                    />
+                    <div className="w-full h-full relative">
+                      <video
+                        ref={videoRef}
+                        src={video.videoUrl}
+                        poster={video.thumbnail}
+                        className="w-full h-full object-contain bg-black"
+                        preload="auto"
+                        playsInline
+                        webkit-playsinline="true"
+                        controls
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                        onTimeUpdate={handleTimeUpdate}
+                        onEnded={() => setIsPlaying(false)}
+                      />
+                      
+                      {/* Premium Floating Back Button */}
+                      <div className="absolute top-4 left-4 z-10">
+                        <Link to="/" className="p-2 bg-black/60 hover:bg-black/80 backdrop-blur-sm text-white rounded-full transition-colors flex items-center justify-center">
+                          <ChevronLeft className="w-5 h-5" />
+                        </Link>
+                      </div>
+                    </div>
                   ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900 text-neutral-500">
                       <Play className="w-12 h-12 mb-4 opacity-20" />
                       <p>Video source not available</p>
                     </div>
                   )}
-
-                  {/* Diagnostic / Fail-safe Fallback Overlay for direct files */}
-                  {videoError && video.videoUrl && (
-                    <div className="absolute inset-0 bg-neutral-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
-                      <div className="w-14 h-14 bg-rose-500/10 rounded-full flex items-center justify-center text-rose-500 mb-4 animate-bounce">
-                        <ShieldAlert className="w-7 h-7" />
-                      </div>
-                      <h4 className="text-sm font-black text-white uppercase tracking-wider">Direct Stream Error</h4>
-                      <p className="text-[11px] text-neutral-400 mt-2 max-w-md leading-relaxed">
-                        Your browser blocked direct streaming of this file due to missing storage CORS headers, a slow network, or unsupported video codecs.
-                      </p>
-                      
-                      <div className="flex flex-col sm:flex-row items-center gap-3 mt-6 w-full max-w-xs">
-                        <a 
-                          href={video.videoUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" /> Open Direct Link
-                        </a>
-                        <button 
-                          onClick={() => {
-                            if (videoRef.current) {
-                              // Bypass custom engine and use native HTML5 players
-                              videoRef.current.controls = true;
-                              videoRef.current.load();
-                              videoRef.current.play().catch(() => {});
-                            }
-                            setVideoError(false);
-                          }}
-                          className="w-full py-2.5 px-4 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-xl text-xs font-bold transition-all"
-                        >
-                          Show Standard Player
-                        </button>
-                      </div>
-                      <p className="text-[9px] text-neutral-500 mt-4">
-                        💡 Admin Tip: Upload video to YouTube or Google Drive & paste the link for 100% playability!
-                      </p>
-                    </div>
-                  )}
-                  
-                  {/* Custom Controls Overlay (Only for non-embed files) */}
-                  <AnimatePresence>
-                    {showControls && !videoError && (
-                      <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 flex flex-col justify-end p-4 transition-opacity"
-                      >
-                        {/* Top Controls */}
-                        <div className="absolute top-4 left-4 flex items-center gap-2">
-                          <Link to="/" className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
-                            <ChevronLeft className="w-5 h-5" />
-                          </Link>
-                        </div>
-
-                        {/* Bottom Controls */}
-                        <div className="space-y-4">
-                          {/* Progress Bar */}
-                          <div className="group/progress relative h-1.5 bg-white/20 rounded-full cursor-pointer overflow-hidden">
-                            <div 
-                              className="absolute h-full bg-rose-600 rounded-full transition-all duration-100"
-                              style={{ width: `${progress}%` }}
-                            />
-                            <input
-                              type="range"
-                              min="0"
-                              max="100"
-                              value={progress}
-                              onChange={handleSeek}
-                              className="absolute inset-0 w-full opacity-0 cursor-pointer"
-                            />
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <button onClick={togglePlay} className="p-2 hover:bg-white/20 rounded-full transition-colors">
-                                {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current translate-x-0.5" />}
-                              </button>
-                              
-                              <div className="flex items-center gap-2 group/volume">
-                                <button onClick={toggleMute} className="p-2 hover:bg-white/20 rounded-full transition-colors">
-                                  {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                                </button>
-                                <input
-                                  type="range"
-                                  min="0"
-                                  max="1"
-                                  step="0.1"
-                                  value={volume}
-                                  onChange={handleVolumeChange}
-                                  className="w-0 group-hover/volume:w-24 transition-all opacity-0 group-hover/volume:opacity-100 cursor-pointer accent-white"
-                                />
-                              </div>
-
-                              <span className="text-xs font-mono text-neutral-300">
-                                {videoRef.current ? Math.floor(videoRef.current.currentTime / 60) : '0'}:
-                                {videoRef.current ? String(Math.floor(videoRef.current.currentTime % 60)).padStart(2, '0') : '00'} 
-                                {' / '} 
-                                {video.duration}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <button className="p-2 hover:bg-white/20 rounded-full transition-colors">
-                                <Settings className="w-5 h-5" />
-                              </button>
-                              <button onClick={toggleFullscreen} className="p-2 hover:bg-white/20 rounded-full transition-colors">
-                                <Maximize className="w-5 h-5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
               )}
             </div>
@@ -759,5 +659,6 @@ export default function VideoDetail() {
         </div>
       </div>
     </div>
+  </div>
   );
 }

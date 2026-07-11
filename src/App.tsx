@@ -43,7 +43,7 @@ const AppContent = () => {
 
   return (
     <Router>
-      <div className="min-h-screen bg-neutral-950 text-white selection:bg-rose-500 selection:text-white">
+      <div className="min-h-screen w-full overflow-x-hidden relative bg-neutral-950 text-white selection:bg-rose-500 selection:text-white">
         <Navbar />
         <main className="pb-20">
           <Routes>

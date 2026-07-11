@@ -5,7 +5,7 @@ import { Video } from '../types';
 import VideoCard from '../components/VideoCard';
 import { motion } from 'motion/react';
 import { useSEO } from '../hooks/useSEO';
-import { getStoredVideos } from '../lib/videoStore';
+import { getStoredVideos, subscribeStoredVideos } from '../lib/videoStore';
 
 export default function Home() {
   useSEO('Home - Premium Video Streaming', 'Stream the latest movies, sports, and gaming content on StreamHub.');
@@ -15,35 +15,35 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const allVideos = await getStoredVideos();
-        const publishedVideos = allVideos.filter(v => v.published);
+    setLoading(true);
+    const unsubscribe = subscribeStoredVideos((allVideos) => {
+      const publishedVideos = allVideos.filter(v => v.published);
 
-        // Featured
-        const featured = publishedVideos.find(v => v.featured);
-        if (featured) {
-          setFeaturedVideo(featured);
-        } else if (publishedVideos.length > 0) {
-          setFeaturedVideo(publishedVideos[0]);
-        }
-
-        // Trending (Sorted by views)
-        const trending = [...publishedVideos].sort((a, b) => b.views - a.views).slice(0, 6);
-        setTrendingVideos(trending);
-
-        // Latest (Sorted by date)
-        const latest = [...publishedVideos].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
-        setLatestVideos(latest);
-        
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching home data:", error);
-        setLoading(false);
+      // Featured
+      const featured = publishedVideos.find(v => v.featured);
+      if (featured) {
+        setFeaturedVideo(featured);
+      } else if (publishedVideos.length > 0) {
+        setFeaturedVideo(publishedVideos[0]);
+      } else {
+        setFeaturedVideo(null);
       }
-    };
 
-    fetchData();
+      // Trending (Sorted by views)
+      const trending = [...publishedVideos].sort((a, b) => b.views - a.views).slice(0, 6);
+      setTrendingVideos(trending);
+
+      // Latest (Sorted by date)
+      const latest = [...publishedVideos].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
+      setLatestVideos(latest);
+      
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching home data:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   if (loading) {
