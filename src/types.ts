@@ -92,6 +92,11 @@ export interface SiteSettings {
     socialBarScript: string;
     popunderScript: string;
     timerSeconds: number;
+    popunderTopScript?: string;
+    nativeBannerScript?: string;
+    bannerScript?: string;
+    smartlinkUrl?: string;
+    socialBarTopScript?: string;
     showDirectLink?: boolean;
     showPromo1?: boolean;
     showPromo2?: boolean;

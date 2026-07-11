@@ -14,11 +14,40 @@ import { formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import VideoCard from '../components/VideoCard';
 import { getSingleStoredVideo, getStoredVideos } from '../lib/videoStore';
+import AdRenderer from '../components/AdRenderer';
+
+// Preprocess URLs to ensure standard cloud drives return direct media streaming streams or clean embed src
+function preprocessVideoUrl(url: string): string {
+  if (!url) return '';
+  let trimmed = url.trim();
+
+  // If user pasted an iframe string, extract the src URL first!
+  if (trimmed.toLowerCase().includes('<iframe')) {
+    const srcMatch = trimmed.match(/src=["']([^"']+)["']/i);
+    if (srcMatch && srcMatch[1]) {
+      trimmed = srcMatch[1];
+    }
+  }
+
+  // Dropbox share links: convert to raw direct media streams
+  if (trimmed.toLowerCase().includes('dropbox.com')) {
+    if (trimmed.includes('?dl=')) {
+      trimmed = trimmed.replace(/\?dl=[01]/, '?raw=1');
+    } else if (trimmed.includes('&dl=')) {
+      trimmed = trimmed.replace(/&dl=[01]/, '&raw=1');
+    } else if (!trimmed.includes('?')) {
+      trimmed = trimmed + '?raw=1';
+    }
+  }
+
+  return trimmed;
+}
 
 // Helper to check if a URL is a direct video file
 function isDirectVideoUrl(url: string): boolean {
   if (!url) return false;
-  const trimmed = url.trim().toLowerCase();
+  const processed = preprocessVideoUrl(url);
+  const trimmed = processed.toLowerCase();
   
   // Firebase Storage direct uploads are direct video files
   if (trimmed.includes('firebasestorage.googleapis.com')) return true;
@@ -26,11 +55,14 @@ function isDirectVideoUrl(url: string): boolean {
   // Local files / Blobs
   if (trimmed.startsWith('/') || trimmed.startsWith('file://') || trimmed.startsWith('blob:')) return true;
 
+  // Dropbox with raw=1 is a direct video file
+  if (trimmed.includes('dropbox.com') && trimmed.includes('raw=1')) return true;
+
   // Check extensions
   const extensions = ['.mp4', '.webm', '.ogg', '.m3u8', '.mpd', '.mov', '.avi', '.mkv', '.3gp', '.wmv'];
   
   try {
-    const urlObj = new URL(url.trim());
+    const urlObj = new URL(processed);
     const pathname = urlObj.pathname.toLowerCase();
     if (extensions.some(ext => pathname.endsWith(ext))) {
       return true;
@@ -43,7 +75,15 @@ function isDirectVideoUrl(url: string): boolean {
 
   // Common direct video streams/CDN paths
   if (trimmed.includes('/video/') || trimmed.includes('/stream/') || trimmed.includes('cdn') || trimmed.includes('.mp4')) {
-    if (!trimmed.includes('youtube.com') && !trimmed.includes('youtu.be') && !trimmed.includes('drive.google.com') && !trimmed.includes('docs.google.com') && !trimmed.includes('vimeo.com')) {
+    if (
+      !trimmed.includes('youtube.com') && 
+      !trimmed.includes('youtu.be') && 
+      !trimmed.includes('drive.google.com') && 
+      !trimmed.includes('docs.google.com') && 
+      !trimmed.includes('vimeo.com') &&
+      !trimmed.includes('loom.com') &&
+      !trimmed.includes('streamable.com')
+    ) {
       return true;
     }
   }
@@ -54,7 +94,8 @@ function isDirectVideoUrl(url: string): boolean {
 // Helper to extract iframe / embed URL for standard cloud-hosted platforms
 function getEmbedUrl(url: string) {
   if (!url) return null;
-  const trimmed = url.trim();
+  const processed = preprocessVideoUrl(url);
+  const trimmed = processed.trim();
 
   // YouTube Shorts Support
   const shortsMatch = trimmed.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/i);
@@ -82,7 +123,56 @@ function getEmbedUrl(url: string) {
     return `https://player.vimeo.com/video/${vimeoMatch[3]}?autoplay=1`;
   }
 
-  // Already an embedded URL (like DailyMotion iframe or other custom embed)
+  // Loom Links (e.g. loom.com/share/xxxx or loom.com/file/xxxx)
+  if (trimmed.includes('loom.com')) {
+    const loomMatch = trimmed.match(/loom\.com\/(?:share|file)\/([a-zA-Z0-9_-]+)/i);
+    if (loomMatch && loomMatch[1]) {
+      return `https://www.loom.com/embed/${loomMatch[1]}?autoplay=1`;
+    }
+  }
+
+  // Streamable Links (e.g. streamable.com/xxxx)
+  if (trimmed.includes('streamable.com')) {
+    const streamableMatch = trimmed.match(/streamable\.com\/([a-zA-Z0-9_-]+)/i);
+    if (streamableMatch && streamableMatch[1] && streamableMatch[1] !== 'e') {
+      return `https://streamable.com/e/${streamableMatch[1]}`;
+    }
+  }
+
+  // Dailymotion Links (e.g. dailymotion.com/video/xxxx)
+  if (trimmed.includes('dailymotion.com') || trimmed.includes('dai.ly')) {
+    const dmMatch = trimmed.match(/(?:dailymotion\.com\/video|dai\.ly)\/([a-zA-Z0-9_-]+)/i);
+    if (dmMatch && dmMatch[1]) {
+      return `https://www.dailymotion.com/embed/video/${dmMatch[1]}?autoplay=1`;
+    }
+  }
+
+  // TikTok Links (e.g. tiktok.com/@username/video/xxxx)
+  if (trimmed.includes('tiktok.com')) {
+    const tiktokMatch = trimmed.match(/video\/(\d+)/i);
+    if (tiktokMatch && tiktokMatch[1]) {
+      return `https://www.tiktok.com/embed/${tiktokMatch[1]}`;
+    }
+  }
+
+  // Facebook Videos (e.g. facebook.com/watch/?v=xxxx or facebook.com/username/videos/xxxx/)
+  if (trimmed.includes('facebook.com') || trimmed.includes('fb.watch')) {
+    return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(trimmed)}&show_text=0&t=0`;
+  }
+
+  // Twitch Clips or Videos
+  if (trimmed.includes('twitch.tv')) {
+    const clipMatch = trimmed.match(/clips\.twitch\.tv\/([a-zA-Z0-9_-]+)/i) || trimmed.match(/twitch\.tv\/\w+\/clip\/([a-zA-Z0-9_-]+)/i);
+    if (clipMatch && clipMatch[1]) {
+      return `https://clips.twitch.tv/embed?clip=${clipMatch[1]}&parent=${window.location.hostname}`;
+    }
+    const videoMatch = trimmed.match(/twitch\.tv\/videos\/(\d+)/i);
+    if (videoMatch && videoMatch[1]) {
+      return `https://player.twitch.tv/?video=${videoMatch[1]}&parent=${window.location.hostname}&autoplay=true`;
+    }
+  }
+
+  // Already an embedded URL (like embed src, or has embedded keyword)
   if (trimmed.includes('/embed/') || trimmed.includes('/preview') || trimmed.includes('player.')) {
     return trimmed;
   }
@@ -206,16 +296,37 @@ export default function VideoDetail() {
 
         // Inject scripts if enabled
         if (settings.adConfig?.enabled) {
-          if (settings.adConfig.socialBarScript) {
-            const script = document.createElement('script');
-            script.innerHTML = settings.adConfig.socialBarScript;
-            document.body.appendChild(script);
-          }
-          if (settings.adConfig.popunderScript) {
-            const script = document.createElement('script');
-            script.innerHTML = settings.adConfig.popunderScript;
-            document.body.appendChild(script);
-          }
+          const adConfig = settings.adConfig;
+          const scriptsToInject = [
+            { id: 'ad-popunder', code: adConfig.popunderScript },
+            { id: 'ad-socialbar', code: adConfig.socialBarScript },
+            { id: 'ad-popundertop', code: adConfig.popunderTopScript },
+            { id: 'ad-socialbartop', code: adConfig.socialBarTopScript }
+          ];
+
+          scriptsToInject.forEach(({ id, code }) => {
+            if (code && !document.getElementById(id)) {
+              const script = document.createElement('script');
+              script.id = id;
+              
+              if (code.includes('<script')) {
+                const temp = document.createElement('div');
+                temp.innerHTML = code;
+                const actualScript = temp.querySelector('script');
+                if (actualScript) {
+                  Array.from(actualScript.attributes).forEach(attr => {
+                    script.setAttribute(attr.name, attr.value);
+                  });
+                  script.innerHTML = actualScript.innerHTML;
+                } else {
+                  script.innerHTML = code;
+                }
+              } else {
+                script.innerHTML = code;
+              }
+              document.body.appendChild(script);
+            }
+          });
         }
 
         // Fetch Single Video from unified, resilient videoStore
@@ -398,6 +509,9 @@ export default function VideoDetail() {
 
   if (!video) return null;
 
+  const processedUrl = preprocessVideoUrl(video.videoUrl);
+  const embedUrl = getEmbedUrl(processedUrl);
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       {/* Modern Back Button */}
@@ -542,10 +656,10 @@ export default function VideoDetail() {
             </div>
           ) : (
             <div className="relative w-full h-full group bg-black overflow-hidden rounded-2xl" onMouseMove={() => setShowControls(true)}>
-              {getEmbedUrl(video.videoUrl) ? (
+              {embedUrl ? (
                 <div className="w-full h-full relative">
                   <iframe
-                    src={getEmbedUrl(video.videoUrl)!}
+                    src={embedUrl}
                     className="w-full h-full border-0 absolute inset-0 z-0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
@@ -560,12 +674,12 @@ export default function VideoDetail() {
                 </div>
               ) : (
                 <div className="w-full h-full relative bg-neutral-950 flex items-center justify-center">
-                  {video.videoUrl ? (
+                  {processedUrl ? (
                     <div className="w-full h-full relative">
                       <video
-                        key={video.videoUrl}
+                        key={processedUrl}
                         ref={videoRef}
-                        src={video.videoUrl}
+                        src={processedUrl}
                         poster={video.thumbnail}
                         className="w-full h-full object-contain bg-black cursor-pointer"
                         preload="auto"
@@ -613,6 +727,14 @@ export default function VideoDetail() {
           )}
         </div>
 
+        {/* Banner Ad Spot #1 (Below Video Player) */}
+        {siteSettings?.adConfig?.enabled && siteSettings.adConfig.bannerScript && (
+          <div className="w-full">
+            <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-1">Advertisement</div>
+            <AdRenderer htmlCode={siteSettings.adConfig.bannerScript} />
+          </div>
+        )}
+
         {/* Info & Actions */}
         <div className="space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -640,7 +762,7 @@ export default function VideoDetail() {
               </span>
             </div>
             <p className="text-neutral-400 text-sm leading-relaxed whitespace-pre-wrap">
-              {video.description}
+               {video.description}
             </p>
             <div className="flex flex-wrap gap-2">
               {video.tags?.map(tag => (
@@ -650,7 +772,7 @@ export default function VideoDetail() {
 
             {/* Direct Play/Download helper */}
             <div className="p-4 bg-rose-950/20 border border-rose-500/20 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-rose-300 mt-4">
-              <div className="space-y-1">
+              <div className="space-y-1 col-span-1">
                 <span className="font-bold flex items-center gap-1.5 text-rose-400">
                   <Play className="w-3.5 h-3.5 fill-current" /> প্লেয়ারে সমস্যা হলে (If player has issue)
                 </span>
@@ -658,14 +780,26 @@ export default function VideoDetail() {
                   ভিডিও লোড হতে সময় নিলে বা সমস্যা হলে আপনি সরাসরি নিচের লিংকে ক্লিক করে নতুন ট্যাবে প্লে অথবা ডাউনলোড করতে পারেন।
                 </p>
               </div>
-              <a 
-                href={video.videoUrl} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs transition-colors self-start sm:self-auto shrink-0 shadow-lg shadow-rose-600/10 border border-white/5"
-              >
-                <ExternalLink className="w-3.5 h-3.5" /> সরাসরি প্লে করুন (Play Direct)
-              </a>
+              <div className="flex flex-wrap gap-2 shrink-0 self-start sm:self-auto">
+                <a 
+                  href={video.videoUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 rounded-xl font-bold text-xs transition-colors border border-rose-500/30 shrink-0"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> সরাসরি প্লে করুন (Play Direct)
+                </a>
+                {siteSettings?.adConfig?.enabled && siteSettings.adConfig.smartlinkUrl && (
+                  <a 
+                    href={siteSettings.adConfig.smartlinkUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs transition-colors shadow-lg shadow-rose-600/20 border border-white/5 shrink-0"
+                  >
+                    ⚡ হাই স্পিড সার্ভার (HD Server 2)
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -733,6 +867,15 @@ export default function VideoDetail() {
           <Play className="w-4 h-4 text-rose-600" />
           Related Videos
         </h3>
+
+        {/* Native Banner Ad Spot */}
+        {siteSettings?.adConfig?.enabled && siteSettings.adConfig.nativeBannerScript && (
+          <div className="p-1 bg-neutral-900 border border-white/5 rounded-2xl">
+            <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider text-center py-1">Sponsored Native Ad</div>
+            <AdRenderer htmlCode={siteSettings.adConfig.nativeBannerScript} />
+          </div>
+        )}
+
         <div className="flex flex-col gap-4">
           {relatedVideos.map((v) => (
             <VideoCard key={v.id} video={v} />

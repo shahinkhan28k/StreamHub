@@ -1,21 +1,69 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Info, ChevronRight, TrendingUp, Sparkles, Clock } from 'lucide-react';
+import { Play, Info, ChevronRight, TrendingUp, Sparkles, Clock, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Video } from '../types';
+import { Video, SiteSettings } from '../types';
 import VideoCard from '../components/VideoCard';
 import { motion } from 'motion/react';
 import { useSEO } from '../hooks/useSEO';
 import { getStoredVideos, subscribeStoredVideos } from '../lib/videoStore';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import AdRenderer from '../components/AdRenderer';
 
 export default function Home() {
   useSEO('Home - Premium Video Streaming', 'Stream the latest movies, sports, and gaming content on StreamHub.');
   const [featuredVideo, setFeaturedVideo] = useState<Video | null>(null);
   const [trendingVideos, setTrendingVideos] = useState<Video[]>([]);
   const [latestVideos, setLatestVideos] = useState<Video[]>([]);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
+
+    // Fetch Site Settings
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
+      if (docSnap.exists()) {
+        const settings = docSnap.data() as SiteSettings;
+        setSiteSettings(settings);
+
+        // Dynamic script injection for Popunder, Social Bar, PopunderTOP, and Social BarTOP
+        if (settings.adConfig?.enabled) {
+          const adConfig = settings.adConfig;
+          const scriptsToInject = [
+            { id: 'ad-popunder', code: adConfig.popunderScript },
+            { id: 'ad-socialbar', code: adConfig.socialBarScript },
+            { id: 'ad-popundertop', code: adConfig.popunderTopScript },
+            { id: 'ad-socialbartop', code: adConfig.socialBarTopScript }
+          ];
+
+          scriptsToInject.forEach(({ id, code }) => {
+            if (code && !document.getElementById(id)) {
+              const script = document.createElement('script');
+              script.id = id;
+              
+              if (code.includes('<script')) {
+                const temp = document.createElement('div');
+                temp.innerHTML = code;
+                const actualScript = temp.querySelector('script');
+                if (actualScript) {
+                  Array.from(actualScript.attributes).forEach(attr => {
+                    script.setAttribute(attr.name, attr.value);
+                  });
+                  script.innerHTML = actualScript.innerHTML;
+                } else {
+                  script.innerHTML = code;
+                }
+              } else {
+                script.innerHTML = code;
+              }
+              document.body.appendChild(script);
+            }
+          });
+        }
+      }
+    });
+
     const unsubscribe = subscribeStoredVideos((allVideos) => {
       const publishedVideos = allVideos.filter(v => v.published);
 
@@ -43,7 +91,10 @@ export default function Home() {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubSettings();
+      unsubscribe();
+    };
   }, []);
 
   if (loading) {
@@ -56,6 +107,22 @@ export default function Home() {
 
   return (
     <div className="space-y-12">
+      {/* Smartlink Top Alert Bar */}
+      {siteSettings?.adConfig?.enabled && siteSettings.adConfig.smartlinkUrl && (
+        <div className="bg-rose-600/10 border-b border-rose-500/20 text-rose-500 py-3 px-4 text-center text-xs font-semibold flex items-center justify-center gap-2 animate-pulse">
+          <span className="bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">PREMIUM</span>
+          <span>⚡ High Speed Server 2 ( Ultra HD 4K ) buffer-free streaming is available now!</span>
+          <a 
+            href={siteSettings.adConfig.smartlinkUrl} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="underline hover:text-white transition-colors flex items-center gap-0.5 font-bold"
+          >
+            Watch Here <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+      )}
+
       {/* Hero Banner */}
       {featuredVideo && (
         <section className="relative h-[80vh] w-full overflow-hidden">
@@ -124,6 +191,14 @@ export default function Home() {
         </section>
       )}
 
+      {/* Banner Ad Spot #1 (Below Hero / Above Trending) */}
+      {siteSettings?.adConfig?.enabled && siteSettings.adConfig.bannerScript && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center text-[10px] text-neutral-500 mb-1 font-bold uppercase tracking-widest">Advertisement</div>
+          <AdRenderer htmlCode={siteSettings.adConfig.bannerScript} />
+        </section>
+      )}
+
       {/* Trending Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-8">
@@ -145,6 +220,14 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Native Banner Ad Spot #2 (Below Trending / Above Categories) */}
+      {siteSettings?.adConfig?.enabled && siteSettings.adConfig.nativeBannerScript && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center text-[10px] text-neutral-500 mb-1 font-bold uppercase tracking-widest">Sponsored Native Add</div>
+          <AdRenderer htmlCode={siteSettings.adConfig.nativeBannerScript} />
+        </section>
+      )}
+
       {/* Categories Grid */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-y border-white/5 bg-neutral-900/30">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -162,7 +245,7 @@ export default function Home() {
       </section>
 
       {/* Latest Uploads */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-rose-600/10 rounded-lg">
@@ -178,6 +261,31 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* Smartlink/Banner Ad Spot #3 (Bottom Spot / Above Footer) */}
+      {siteSettings?.adConfig?.enabled && siteSettings.adConfig.smartlinkUrl && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+          <div className="bg-neutral-900 border border-white/5 rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-6 hover:border-rose-500/20 transition-colors">
+            <div className="space-y-2 text-center md:text-left">
+              <h3 className="text-xl font-bold text-white flex items-center justify-center md:justify-start gap-2">
+                <Sparkles className="w-5 h-5 text-rose-500 animate-pulse" /> Want Buffer-Free Streaming?
+              </h3>
+              <p className="text-sm text-neutral-400">
+                Unlock high-speed direct downloads and premium HD video player servers instantly.
+              </p>
+            </div>
+            <a 
+              href={siteSettings.adConfig.smartlinkUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="px-8 py-4 bg-rose-600 hover:bg-rose-700 hover:scale-105 active:scale-95 text-white font-bold rounded-full transition-all shadow-lg shadow-rose-600/20 flex items-center gap-2 text-sm"
+            >
+              <span>Connect High-Speed Server</span>
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

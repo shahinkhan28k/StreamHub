@@ -58,6 +58,11 @@ export default function SiteSettingsPage() {
           directLink: savedData.adConfig?.directLink || defaultPromoConfig.directLink,
           socialBarScript: savedData.adConfig?.socialBarScript || '',
           popunderScript: savedData.adConfig?.popunderScript || '',
+          popunderTopScript: savedData.adConfig?.popunderTopScript || '',
+          nativeBannerScript: savedData.adConfig?.nativeBannerScript || '',
+          bannerScript: savedData.adConfig?.bannerScript || '',
+          smartlinkUrl: savedData.adConfig?.smartlinkUrl || '',
+          socialBarTopScript: savedData.adConfig?.socialBarTopScript || '',
           timerSeconds: savedData.adConfig?.timerSeconds ?? defaultPromoConfig.timerSeconds,
           showDirectLink: savedData.adConfig?.showDirectLink !== false,
           showPromo1: savedData.adConfig?.showPromo1 !== false,
@@ -102,6 +107,11 @@ export default function SiteSettingsPage() {
             showPromo1: true,
             showPromo2: true,
             showPromo3: true,
+            popunderTopScript: '',
+            nativeBannerScript: '',
+            bannerScript: '',
+            smartlinkUrl: '',
+            socialBarTopScript: '',
             ...defaultPromoConfig
           }
         });
@@ -490,6 +500,77 @@ export default function SiteSettingsPage() {
                 placeholder="Paste script here..."
                 className="w-full bg-neutral-800 border border-white/5 rounded-xl py-3 px-4 focus:outline-none focus:border-rose-500 transition-colors font-mono text-xs" 
               />
+            </div>
+
+            {/* Custom Placements requested by the user */}
+            <div className="border-t border-white/5 pt-6 space-y-4">
+              <h3 className="text-sm font-bold text-rose-500 uppercase tracking-wider flex items-center gap-2">
+                <Code className="w-4 h-4 text-rose-500" /> কাস্টম বিজ্ঞাপন প্লেসমেন্ট (Custom Ad Placements)
+              </h3>
+              <p className="text-xs text-neutral-500">
+                এই প্লেসমেন্টগুলোর স্ক্রিপ্ট বা লিংক সরাসরি ওয়েবসাইটের সংশ্লিষ্ট স্থানে রেন্ডার করা হবে। (These scripts/links will render dynamically inside the designated slots on the platform.)
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-2">
+                    <Code className="w-3 h-3 text-rose-500" /> PopunderTOP (পপআন্ডার টপ স্ক্রিপ্ট)
+                  </label>
+                  <textarea 
+                    {...register('adConfig.popunderTopScript')} 
+                    rows={3}
+                    placeholder="পপআন্ডার টপ স্ক্রিপ্ট বা লিংক এখানে দিন..."
+                    className="w-full bg-neutral-800 border border-white/5 rounded-xl py-3 px-4 focus:outline-none focus:border-rose-500 transition-colors font-mono text-xs" 
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-2">
+                    <Code className="w-3 h-3 text-rose-500" /> Social BarTOP (সোশ্যাল বার টপ স্ক্রিপ্ট)
+                  </label>
+                  <textarea 
+                    {...register('adConfig.socialBarTopScript')} 
+                    rows={3}
+                    placeholder="টপ সোশ্যাল বার স্ক্রিপ্ট এখানে দিন..."
+                    className="w-full bg-neutral-800 border border-white/5 rounded-xl py-3 px-4 focus:outline-none focus:border-rose-500 transition-colors font-mono text-xs" 
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-2">
+                    <Code className="w-3 h-3 text-rose-500" /> Native Banner (নেটিভ ব্যানার স্ক্রিপ্ট)
+                  </label>
+                  <textarea 
+                    {...register('adConfig.nativeBannerScript')} 
+                    rows={3}
+                    placeholder="নেটিভ ব্যানার কোড/আইফ্রেম বা স্ক্রিপ্ট এখানে দিন..."
+                    className="w-full bg-neutral-800 border border-white/5 rounded-xl py-3 px-4 focus:outline-none focus:border-rose-500 transition-colors font-mono text-xs" 
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-2">
+                    <Code className="w-3 h-3 text-rose-500" /> Banner (ব্যানার বিজ্ঞাপন স্ক্রিপ্ট)
+                  </label>
+                  <textarea 
+                    {...register('adConfig.bannerScript')} 
+                    rows={3}
+                    placeholder="ব্যানার কোড/আইফ্রেম বা স্ক্রিপ্ট এখানে দিন..."
+                    className="w-full bg-neutral-800 border border-white/5 rounded-xl py-3 px-4 focus:outline-none focus:border-rose-500 transition-colors font-mono text-xs" 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-2">
+                  <ExternalLink className="w-3 h-3 text-rose-500" /> Smartlink (স্মার্টলিঙ্ক URL)
+                </label>
+                <input 
+                  {...register('adConfig.smartlinkUrl')} 
+                  placeholder="https://example.com/smartlink"
+                  className="w-full bg-neutral-800 border border-white/5 rounded-xl py-3 px-4 focus:outline-none focus:border-rose-500 transition-colors font-mono text-xs" 
+                />
+              </div>
             </div>
 
             {/* Premium 3rd-Party App Promotions */}
