@@ -15,10 +15,52 @@ import { motion, AnimatePresence } from 'motion/react';
 import VideoCard from '../components/VideoCard';
 import { getSingleStoredVideo, getStoredVideos } from '../lib/videoStore';
 
+// Helper to check if a URL is a direct video file
+function isDirectVideoUrl(url: string): boolean {
+  if (!url) return false;
+  const trimmed = url.trim().toLowerCase();
+  
+  // Firebase Storage direct uploads are direct video files
+  if (trimmed.includes('firebasestorage.googleapis.com')) return true;
+  
+  // Local files / Blobs
+  if (trimmed.startsWith('/') || trimmed.startsWith('file://') || trimmed.startsWith('blob:')) return true;
+
+  // Check extensions
+  const extensions = ['.mp4', '.webm', '.ogg', '.m3u8', '.mpd', '.mov', '.avi', '.mkv', '.3gp', '.wmv'];
+  
+  try {
+    const urlObj = new URL(url.trim());
+    const pathname = urlObj.pathname.toLowerCase();
+    if (extensions.some(ext => pathname.endsWith(ext))) {
+      return true;
+    }
+  } catch (e) {
+    if (extensions.some(ext => trimmed.includes(ext))) {
+      return true;
+    }
+  }
+
+  // Common direct video streams/CDN paths
+  if (trimmed.includes('/video/') || trimmed.includes('/stream/') || trimmed.includes('cdn') || trimmed.includes('.mp4')) {
+    if (!trimmed.includes('youtube.com') && !trimmed.includes('youtu.be') && !trimmed.includes('drive.google.com') && !trimmed.includes('docs.google.com') && !trimmed.includes('vimeo.com')) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Helper to extract iframe / embed URL for standard cloud-hosted platforms
 function getEmbedUrl(url: string) {
   if (!url) return null;
   const trimmed = url.trim();
+
+  // YouTube Shorts Support
+  const shortsMatch = trimmed.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/i);
+  if (shortsMatch && shortsMatch[1]) {
+    return `https://www.youtube.com/embed/${shortsMatch[1]}?autoplay=1&rel=0&modestbranding=1`;
+  }
 
   // YouTube Links
   const ytMatch = trimmed.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
@@ -42,6 +84,11 @@ function getEmbedUrl(url: string) {
 
   // Already an embedded URL (like DailyMotion iframe or other custom embed)
   if (trimmed.includes('/embed/') || trimmed.includes('/preview') || trimmed.includes('player.')) {
+    return trimmed;
+  }
+
+  // If it is NOT a direct video URL, treat it as a generic embed page
+  if (!isDirectVideoUrl(trimmed)) {
     return trimmed;
   }
 
@@ -599,6 +646,26 @@ export default function VideoDetail() {
               {video.tags?.map(tag => (
                 <span key={tag} className="text-[10px] bg-neutral-800 px-2 py-1 rounded-md text-neutral-400">#{tag}</span>
               ))}
+            </div>
+
+            {/* Direct Play/Download helper */}
+            <div className="p-4 bg-rose-950/20 border border-rose-500/20 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-rose-300 mt-4">
+              <div className="space-y-1">
+                <span className="font-bold flex items-center gap-1.5 text-rose-400">
+                  <Play className="w-3.5 h-3.5 fill-current" /> প্লেয়ারে সমস্যা হলে (If player has issue)
+                </span>
+                <p className="text-neutral-400 text-[11px] leading-relaxed">
+                  ভিডিও লোড হতে সময় নিলে বা সমস্যা হলে আপনি সরাসরি নিচের লিংকে ক্লিক করে নতুন ট্যাবে প্লে অথবা ডাউনলোড করতে পারেন।
+                </p>
+              </div>
+              <a 
+                href={video.videoUrl} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs transition-colors self-start sm:self-auto shrink-0 shadow-lg shadow-rose-600/10 border border-white/5"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> সরাসরি প্লে করুন (Play Direct)
+              </a>
             </div>
           </div>
         </div>
