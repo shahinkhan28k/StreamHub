@@ -27,7 +27,7 @@ function getEmbedUrl(url: string) {
   }
   
   // Google Drive Shared Links
-  if (trimmed.includes('drive.google.com')) {
+  if (trimmed.includes('drive.google.com') || trimmed.includes('docs.google.com')) {
     const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
     if (driveMatch && driveMatch[1]) {
       return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
@@ -516,22 +516,39 @@ export default function VideoDetail() {
                   {video.videoUrl ? (
                     <div className="w-full h-full relative">
                       <video
+                        key={video.videoUrl}
                         ref={videoRef}
                         src={video.videoUrl}
                         poster={video.thumbnail}
-                        className="w-full h-full object-contain bg-black"
+                        className="w-full h-full object-contain bg-black cursor-pointer"
                         preload="auto"
                         playsInline
                         webkit-playsinline="true"
                         controls
+                        onClick={togglePlay}
                         onPlay={() => setIsPlaying(true)}
                         onPause={() => setIsPlaying(false)}
                         onTimeUpdate={handleTimeUpdate}
                         onEnded={() => setIsPlaying(false)}
                       />
                       
+                      {/* Big Center Play Button Overlay */}
+                      {!isPlaying && (
+                        <div 
+                          onClick={togglePlay}
+                          className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 cursor-pointer transition-colors pb-12 z-10"
+                        >
+                          <button
+                            type="button"
+                            className="w-16 h-16 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-2xl transition-all scale-100 hover:scale-110 active:scale-95 border border-white/10"
+                          >
+                            <Play className="w-8 h-8 fill-current translate-x-0.5 text-white" />
+                          </button>
+                        </div>
+                      )}
+                      
                       {/* Premium Floating Back Button */}
-                      <div className="absolute top-4 left-4 z-10">
+                      <div className="absolute top-4 left-4 z-20">
                         <Link to="/" className="p-2 bg-black/60 hover:bg-black/80 backdrop-blur-sm text-white rounded-full transition-colors flex items-center justify-center">
                           <ChevronLeft className="w-5 h-5" />
                         </Link>

@@ -5,12 +5,14 @@ import { SiteSettings, MenuItem, SubMenuItem } from '../../types';
 import { 
   Settings as SettingsIcon, Globe, Palette, Shield, Share2, Save, 
   Sparkles, Layout, Check, Megaphone, ExternalLink, Code, Clock,
-  Plus, Trash2, ArrowLeft, Menu, ChevronRight
+  Plus, Trash2, ArrowLeft, Menu, ChevronRight, ChevronLeft
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import AdminSidebar from '../../components/AdminSidebar';
 
 export default function SiteSettingsPage() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const { register, handleSubmit, reset } = useForm<SiteSettings>();
   const [success, setSuccess] = useState(false);
@@ -178,7 +180,19 @@ export default function SiteSettingsPage() {
         <AdminSidebar />
 
         {/* Settings Content Area */}
-        <div className="flex-1 w-full space-y-10">
+        <div className="flex-1 w-full space-y-6">
+          {/* Back Button */}
+          <div className="flex items-center">
+            <button 
+              type="button"
+              onClick={() => navigate(-1)} 
+              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 border border-white/5 hover:border-white/10 rounded-full text-xs font-bold text-neutral-300 hover:text-white transition-all shadow-xl"
+            >
+              <ChevronLeft className="w-4 h-4 text-rose-500" />
+              <span>ফিরে যান (Go Back)</span>
+            </button>
+          </div>
+
           <div className="bg-neutral-900/40 p-6 rounded-3xl border border-white/5">
             <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
               <SettingsIcon className="w-8 h-8 text-rose-600 animate-pulse" /> Site Settings

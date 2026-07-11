@@ -182,10 +182,15 @@ export default function VideoManagement() {
         }
       }
 
-      if (!videoUrl || !thumbnailUrl) {
-        alert("Please specify a Video and Thumbnail (either enter direct URLs or select files to upload)");
+      if (!videoUrl) {
+        alert("Please specify a Video (either enter direct URL or select file to upload)");
         setUploading(false);
         return;
+      }
+
+      // If no thumbnail is specified or uploaded, use a premium cinema fallback placeholder
+      if (!thumbnailUrl) {
+        thumbnailUrl = "https://images.unsplash.com/photo-1574375927938-d5a98e8edd86?q=80&w=800";
       }
 
       const finalVideo: Partial<Video> = {
@@ -194,7 +199,7 @@ export default function VideoManagement() {
         videoUrl,
         thumbnail: thumbnailUrl,
         categoryId: data.categoryId,
-        duration: data.duration,
+        duration: data.duration || "03:40",
         tags: typeof data.tags === 'string' ? data.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : data.tags || [],
         featured: !!data.featured,
         locked: !!data.locked,
@@ -697,7 +702,7 @@ export default function VideoManagement() {
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Duration</label>
-                  <input {...register('duration', { required: true })} className="w-full bg-neutral-800 border border-white/5 rounded-xl py-3 px-4 focus:outline-none focus:border-rose-500 transition-colors text-xs text-neutral-300" placeholder="e.g. 10:45" />
+                  <input {...register('duration')} className="w-full bg-neutral-800 border border-white/5 rounded-xl py-3 px-4 focus:outline-none focus:border-rose-500 transition-colors text-xs text-neutral-300" placeholder="e.g. 10:45 (Optional)" />
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
